@@ -2,6 +2,7 @@ import base64
 import binascii
 import json
 import logging
+from urllib.parse import quote
 from typing import Any
 
 import httpx
@@ -228,6 +229,9 @@ class CiscoClientSDWAN(CiscoClientController):
 
                         if isinstance(data, list):
                             for i in data:
+                                self._collect_network_hierarchy_children(
+                                    endpoint, i, final_dict
+                                )
                                 endpoint_dict[endpoint["name"]].append(
                                     {
                                         "data": i,
@@ -239,6 +243,9 @@ class CiscoClientSDWAN(CiscoClientController):
                         elif data.get("data"):
                             if isinstance(data["data"], list):
                                 for i in data["data"]:
+                                    self._collect_network_hierarchy_children(
+                                        endpoint, i, final_dict
+                                    )
                                     try:
                                         endpoint_dict[endpoint["name"]].append(
                                             {
@@ -329,6 +336,40 @@ class CiscoClientSDWAN(CiscoClientController):
                 else:
                     pass
         return final_dict
+
+    def _collect_network_hierarchy_children(
+        self,
+        endpoint: dict[str, Any],
+        node: dict[str, Any],
+        final_dict: dict[str, Any],
+    ) -> None:
+        if endpoint.get("name") != "network_hierarchy_node":
+            return
+
+        node_name = node.get("name")
+        if not node_name or str(node_name).lower() != "global":
+            return
+        node_name = str(node_name).lower()
+
+        for child_endpoint in endpoint.get("children", []):
+            child_url = (
+                endpoint["endpoint"]
+                + "/name/"
+                + quote(str(node_name), safe="")
+                + child_endpoint["endpoint"]
+            )
+            child_response = self.get_request(self.base_url + child_url)
+            if child_response is None:
+                continue
+
+            child_data = child_response.json()
+            final_dict.setdefault(child_endpoint["name"], []).append(
+                {
+                    "data": child_data,
+                    "endpoint": child_url,
+                }
+            )
+            self.log_response(child_url, child_response)
 
     def get_device_templates(
         self, endpoint: dict[str, Any], endpoint_dict: dict[str, Any]
