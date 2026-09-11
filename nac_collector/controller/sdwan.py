@@ -2,8 +2,8 @@ import base64
 import binascii
 import json
 import logging
-from urllib.parse import quote
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from rich.progress import (
@@ -191,7 +191,7 @@ class CiscoClientSDWAN(CiscoClientController):
         endpoints_data = self._merge_url_list_endpoints(endpoints_data)
 
         # Initialize an empty dictionary
-        final_dict = {}
+        final_dict: dict[str, Any] = {}
 
         # Iterate over all endpoints
         with Progress(
